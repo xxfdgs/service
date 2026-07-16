@@ -1,0 +1,13 @@
+.agents/
+.claude/
+.codex/
+datasets/
+datasets_lrx/
+AGENTS.md
+claude_config.sh
+runs/
+results/
+paper/
+reports/
+logs/
+analysis/

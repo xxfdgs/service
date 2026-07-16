@@ -1,0 +1,35 @@
+# Tested with Python 3.12, CUDA 12.4, and NVIDIA GPU drivers that support CUDA 12.4.
+--extra-index-url https://download.pytorch.org/whl/cu124
+--find-links https://data.pyg.org/whl/torch-2.6.0+cu124.html
+
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+torch-geometric==2.8.0
+pyg-lib==0.5.0+pt26cu124
+torch-scatter==2.1.2+pt26cu124
+torch-sparse==0.6.18+pt26cu124
+torch-cluster==1.6.3+pt26cu124
+torch-spline-conv==1.2.2+pt26cu124
+
+rdkit==2026.3.3
+yacs==0.1.8
+numpy==2.5.1
+pandas==3.0.3
+scipy==1.18.0
+scikit-learn==1.9.0
+matplotlib==3.11.0
+networkx==3.6.1
+joblib==1.5.3
+tqdm==4.68.4
+
+wandb==0.28.0
+ogb==1.3.6
+jsonlines==4.0.0
+torchmetrics==1.9.0
+tensorboard
+PyYAML
+
+einops==0.8.2
+performer-pytorch==1.1.4
+local-attention==1.11.2
+axial-positional-embedding==0.3.12

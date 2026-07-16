@@ -1,0 +1,89 @@
+out_dir: results
+accelerator: cuda
+devices: 1
+gpu_serial: 0
+num_workers: 0
+metric_best: mae
+metric_agg: argmin
+wandb:
+  use: False
+  project: ZINC
+dataset:
+  dir: datasets_lrx
+  format: PyG-ZINC
+  name: subset
+  task: graph
+  task_type: regression
+  transductive: False
+  node_encoder: True
+  node_encoder_name: CoarseTypeDictNode+RWSE
+  node_encoder_num_types: 119
+  node_encoder_bn: False
+  edge_encoder: True
+  edge_encoder_name: TypeDictEdge
+  edge_encoder_num_types: 4
+  edge_encoder_bn: False
+  data_mask: False
+posenc_RWSE:
+  enable: True
+  kernel:
+    times_func: range(1,21)
+  model: Linear
+  dim_pe: 28
+  raw_norm_type: BatchNorm
+train:
+  mode: double_predict
+  batch_size: 4
+  eval_period: 1
+  ckpt_period: 10
+model:
+  type: GPSDoubleModel_multi4_cat_v0
+  loss_fun: l1
+  temperature: 0.1
+  use_cosine_similarity: True
+  edge_decoding: dot
+  graph_pooling: add
+gt:
+  layer_type: GINE+Transformer
+  layers: 2
+  n_heads: 4
+  dim_hidden: 64
+  dropout: 0.0
+  attn_dropout: 0.5
+  layer_norm: False
+  batch_norm: True
+gnn:
+  head: double_graph
+  layers_pre_mp: 0
+  layers_post_mp: 3
+  dim_inner: 64
+  batchnorm: True
+  act: relu
+  dropout: 0.0
+  agg: mean
+  normalize_adj: False
+optim:
+  clip_grad_norm: True
+  optimizer: adamW
+  weight_decay: 1e-5
+  base_lr: 0.01
+  max_epoch: 1
+  scheduler: cosine_with_warmup
+  num_warmup_epochs: 50
+pretrained:
+  dir: results/coarse_grain_noaux/direct_train_coarse_noaux
+  freeze_main: False
+  reset_prediction_head: False
+data_rate: True
+data_rate_type: True
+fifth_component_delta_weight: 1.0
+use_component_aux_features: False
+coarse_grain_enable: True
+coarse_grain_min_chain_length: 6
+coarse_grain_chain_length_scale: 20.0
+read_multi: False
+read_csv: feedback/20260703_validation.csv
+save_path: ./results/
+property_num: 4
+property_serial: 1
+result_out: False

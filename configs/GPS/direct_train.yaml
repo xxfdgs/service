@@ -1,0 +1,78 @@
+out_dir: results/fifth_component_weight2
+accelerator: cuda
+devices: 1
+gpu_serial: 0
+num_workers: 0
+metric_best: loss  #mae #loss
+metric_agg: argmin
+wandb:
+  use: False
+  project: ZINC
+dataset:
+  dir: datasets_lrx
+  format: PyG-ZINC
+  name: subset
+  task: graph
+  task_type: regression
+  transductive: False
+  node_encoder: True
+  node_encoder_name: TypeDictNode+RWSE
+  node_encoder_num_types: 119 #28
+  node_encoder_bn: False
+  edge_encoder: True
+  edge_encoder_name: TypeDictEdge
+  edge_encoder_num_types: 4
+  edge_encoder_bn: False
+  data_mask: False #True #False           ###lrx add
+posenc_RWSE:
+  enable: True
+  kernel:
+    times_func: range(1,21)
+  model: Linear
+  dim_pe: 28
+  raw_norm_type: BatchNorm
+train:
+  mode: double  #custom  #mask double_multi double
+  batch_size:  8 #32 #64
+  eval_period: 1
+  early_stop_patience: 50
+  early_stop_min_delta: 0.001
+  ckpt_period: 10
+model: #GPSDoubleModel_l1_ntx_v1_single_cat GPSDoubleModel_l1_ntx_v1_single_sum
+  type:  GPSDoubleModel_multi4_cat_v0 #GPSDoubleModel_l1_ntx_v31_single_cat GPSDoubleModel_l1_ntx_v31_single_sum GPSDoubleModel_l1_ntx_v31_multi_sum
+  loss_fun: l1   #l1 #NTX #l1_similar # l1_multi  # l1_ntx
+  temperature: 0.1
+  use_cosine_similarity: True  
+  edge_decoding: dot
+  graph_pooling: add
+gt:
+  layer_type: GINE+Transformer  # CustomGatedGCN+Performer
+  layers: 2  #10
+  n_heads: 4
+  dim_hidden: 64  # `gt.dim_hidden` must match `gnn.dim_inner`
+  dropout: 0.0
+  attn_dropout: 0.5
+  layer_norm: False
+  batch_norm: True
+gnn:
+  head: double_graph   #san_graph #feat_graph #fine_graph #fine_continue_graph # multi_graph
+  layers_pre_mp: 0
+  layers_post_mp: 3  # Not used when `gnn.head: san_graph`
+  dim_inner: 64  # `gt.dim_hidden` must match `gnn.dim_inner`
+  batchnorm: True
+  act: relu
+  dropout: 0.0
+  agg: mean
+  normalize_adj: False
+optim:
+  clip_grad_norm: True
+  optimizer: adamW # AveragedModel adamW
+  weight_decay: 1e-5
+  base_lr: 0.001
+  max_epoch: 1500 #1500  #300
+  scheduler: cosine_with_warmup
+  num_warmup_epochs: 50
+property_num: 4 #6 #4 #2 #1
+fifth_component_delta_weight: 2.0
+property_serial: 1
+read_csv: input/20260703_sum.csv
