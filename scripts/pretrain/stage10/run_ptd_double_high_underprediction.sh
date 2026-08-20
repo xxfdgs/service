@@ -17,8 +17,8 @@ CONFIG="${CONFIG:-$BASE/core4/O12_split100/source_config.yaml}"
 MANIFESTS="${MANIFESTS:-results/input_graphgps_optimization/o12_fifth_identity_ood_seed100_109/fifth_identity_manifests}"
 PT_D="${PT_D:-results/fifth_pretraining/stage4_graphgps_pretraining/PT_D/checkpoints/best_comp5_encoder_state_dict.pt}"
 P1_REFERENCE="${P1_REFERENCE:-results/fifth_pretraining/stage6_strict_no_mordred_fifth_ood_baseline/P1_PT_D_strict_no_mordred}"
-OUT="${OUT:-results/fifth_pretraining/stage10_ptd_double_gt1_underprediction/underprediction_screen}"
-read -r -a SPLIT_SEEDS <<< "${SPLIT_SEEDS:-100 101 102}"
+OUT="${OUT:-results/fifth_pretraining/stage10_ptd_double_gt1_underprediction/underprediction_screen_norm_after}"
+read -r -a SPLIT_SEEDS <<< "${SPLIT_SEEDS:-103 104 105 106 107 108 109}"
 read -r -a VARIANTS <<< "${VARIANTS:-U025 U050 U100}"
 
 [[ -x "$PYTHON" && -f "$RUNNER" && -f "$INPUT" && -f "$CONFIG" && -f "$PT_D" ]] || {
@@ -47,7 +47,7 @@ for seed in "${SPLIT_SEEDS[@]}"; do
         mkdir -p "$OUT/$variant/logs"
         PYTHONPATH=. "$PYTHON" -u "$RUNNER" \
             --config "$CONFIG" --run-dir "$run" --input-csv "$INPUT" \
-            --component-vocab-source "$INPUT" --target-set norm2 --single-target Norm_before \
+            --component-vocab-source "$INPUT" --target-set norm2 --single-target Norm_after \
             --split-manifest "$manifest" --fold "fifth_identity_ood_split${seed}" \
             --group B --candidate "Stage10_${variant}_PTDUnderprediction" \
             --fusion-type concat_mlp --head-type baseline --model-type OneHotEmbedGPS \

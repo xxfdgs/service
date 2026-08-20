@@ -11,3 +11,6 @@ paper/
 reports/
 logs/
 analysis/
+node_modules/
+.npm-cache/
+__pycache__

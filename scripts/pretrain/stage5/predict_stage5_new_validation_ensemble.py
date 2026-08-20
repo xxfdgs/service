@@ -78,6 +78,11 @@ PROPERTY_COLUMNS = [
     "Norm_after",
 ]
 
+TARGET_INDEX = {
+    "Norm_before": 4,
+    "Norm_after": 5,
+}
+
 DEFAULT_MODELS = ["P0_random", "P1_PT_D", "P2_PT_DF"]
 DEFAULT_SPLITS = [100, 101, 102]
 
@@ -133,7 +138,8 @@ def read_csv_robust(path: Path) -> pd.DataFrame:
     raise UnicodeError("Unable to decode CSV:\n" + "\n".join(errors))
 
 
-def validate_external_labels(frame: pd.DataFrame) -> None:
+
+def validate_external_labels(frame: pd.DataFrame,single_task:str) -> None:
     required = {
         "ID",
         "IL_SMILE",
@@ -147,7 +153,7 @@ def validate_external_labels(frame: pd.DataFrame) -> None:
         "mol%_PEG",
         "mol%_Fifth",
         "Fifth_class",
-        "Norm_before",
+        #"Norm_before",
         *PROPERTY_COLUMNS,
     }
     missing = required.difference(frame.columns)
@@ -158,9 +164,9 @@ def validate_external_labels(frame: pd.DataFrame) -> None:
         )
     if frame["ID"].isna().any() or frame["ID"].duplicated().any():
         raise ValueError("new_validation ID must be non-null and unique.")
-    y = pd.to_numeric(frame["Norm_before"], errors="coerce")
+    y = pd.to_numeric(frame[single_task], errors="coerce")
     if not np.isfinite(y.to_numpy(dtype=float)).all():
-        raise ValueError("new_validation Norm_before contains non-finite labels.")
+        raise ValueError(f"new_validation {single_task} contains non-finite labels.")
 
 
 def build_loader_only_external(
@@ -213,6 +219,7 @@ def run_worker(
     manifest_csv: Path,
     worker_dir: Path,
     mordred_feature_path: Path | None,
+    single_target: str,
 ) -> Path:
     worker_dir.mkdir(parents=True, exist_ok=True)
     output_csv = worker_dir / "predictions.csv"
@@ -232,6 +239,8 @@ def run_worker(
         str(output_csv),
         "--worker-cache",
         str(worker_dir / "cache"),
+        "--single-target",
+        single_target,
     ]
     if mordred_feature_path is not None:
         command.extend([
@@ -383,6 +392,7 @@ def make_plots(
     metrics: pd.DataFrame,
     models: list[str],
     output_dir: Path,
+    target: str,
 ) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -400,9 +410,13 @@ def make_plots(
     # Use identical x/y limits for every model, so visual comparison is fair.
     values = [all_predictions["y_true"].to_numpy(dtype=float)]
     for model in models:
-        values.append(all_predictions[f"{model}_ensemble_mean"].to_numpy(dtype=float))
+        values.append(
+            all_predictions[f"{model}_ensemble_mean"].to_numpy(dtype=float)
+        )
+
     merged = np.concatenate(values)
     finite = merged[np.isfinite(merged)]
+
     lo = float(min(0.0, finite.min()))
     hi = float(finite.max())
     span = max(hi - lo, 1e-6)
@@ -427,9 +441,54 @@ def make_plots(
             )
         return "\n".join(lines)
 
+    def add_reference_lines(ax) -> None:
+        """Add y=x and threshold lines x=1 / y=1."""
+        ax.plot(
+            [axis_lo, axis_hi],
+            [axis_lo, axis_hi],
+            linestyle="--",
+            linewidth=1.3,
+            label="y = x",
+        )
+
+        ax.axvline(
+            x=1.0,
+            linestyle=":",
+            linewidth=1.2,
+            label="x = 1",
+        )
+        ax.axhline(
+            y=1.0,
+            linestyle=":",
+            linewidth=1.2,
+            label="y = 1",
+        )
+
+    def add_metric_box(ax, text: str, fontsize: int = 10) -> None:
+        """Place metric text consistently in the upper-right corner."""
+        ax.text(
+            0.97,
+            0.97,
+            text,
+            transform=ax.transAxes,
+            ha="right",
+            va="top",
+            fontsize=fontsize,
+            bbox={
+                "boxstyle": "round,pad=0.35",
+                "facecolor": "white",
+                "alpha": 0.88,
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # Individual model plots
+    # ------------------------------------------------------------------
     for model in models:
         y = all_predictions["y_true"].to_numpy(dtype=float)
-        p = all_predictions[f"{model}_ensemble_mean"].to_numpy(dtype=float)
+        p = all_predictions[
+            f"{model}_ensemble_mean"
+        ].to_numpy(dtype=float)
 
         fig, ax = plt.subplots(figsize=(6.8, 6.2))
 
@@ -442,6 +501,7 @@ def make_plots(
                 marker="o",
                 label=f"single (n={int(masks['single'].sum())})",
             )
+
         if masks["double"].any():
             ax.scatter(
                 y[masks["double"]],
@@ -463,73 +523,93 @@ def make_plots(
                 label=f"other/unknown (n={int(unknown.sum())})",
             )
 
-        ax.plot(
-            [axis_lo, axis_hi],
-            [axis_lo, axis_hi],
-            linestyle="--",
-            linewidth=1.3,
-            label="y = x",
-        )
+        # y=x, x=1, y=1
+        add_reference_lines(ax)
+
         ax.set_xlim(axis_lo, axis_hi)
         ax.set_ylim(axis_lo, axis_hi)
         ax.set_aspect("equal", adjustable="box")
-        ax.set_xlabel("True Norm_before")
-        ax.set_ylabel("Predicted Norm_before (3-model ensemble mean)")
+
+        ax.set_xlabel(f"True {target}")
+        ax.set_ylabel(
+            f"Predicted {target} "
+            f"(model ensemble mean)"
+        )
         ax.set_title(f"{model} — new_validation")
         ax.grid(alpha=0.22)
+
         ax.legend(loc="upper left")
-        ax.text(
-            0.97,
-            0.04,
+
+        # Metrics -> upper right
+        add_metric_box(
+            ax,
             metric_text(model),
-            transform=ax.transAxes,
-            ha="right",
-            va="bottom",
-            bbox={
-                "boxstyle": "round,pad=0.35",
-                "facecolor": "white",
-                "alpha": 0.88,
-            },
         )
+
         fig.tight_layout()
-        fig.savefig(output_dir / f"scatter_{model}.png", dpi=220)
-        fig.savefig(output_dir / f"scatter_{model}.pdf")
+
+        fig.savefig(
+            output_dir / f"scatter_{model}.png",
+            dpi=220,
+        )
+        fig.savefig(
+            output_dir / f"scatter_{model}.pdf",
+        )
         plt.close(fig)
 
-        # Also save class-separated panels for this model.
-        fig, axes = plt.subplots(1, 2, figsize=(11.6, 5.5), squeeze=False)
+        # --------------------------------------------------------------
+        # Class-separated panels
+        # --------------------------------------------------------------
+        fig, axes = plt.subplots(
+            1,
+            2,
+            figsize=(11.6, 5.5),
+            squeeze=False,
+        )
         axes = axes[0]
-        for ax, subset in zip(axes, ("single", "double")):
+
+        for ax, subset in zip(
+            axes,
+            ("single", "double"),
+        ):
             mask = masks[subset]
-            ax.scatter(y[mask], p[mask], s=52, alpha=0.82)
-            ax.plot(
-                [axis_lo, axis_hi],
-                [axis_lo, axis_hi],
-                linestyle="--",
-                linewidth=1.2,
+
+            ax.scatter(
+                y[mask],
+                p[mask],
+                s=52,
+                alpha=0.82,
             )
+
+            # y=x, x=1, y=1
+            add_reference_lines(ax)
+
             ax.set_xlim(axis_lo, axis_hi)
             ax.set_ylim(axis_lo, axis_hi)
             ax.set_aspect("equal", adjustable="box")
-            ax.set_xlabel("True Norm_before")
+
+            ax.set_xlabel(f"True {target}")
             ax.set_title(f"{model} — {subset}")
             ax.grid(alpha=0.22)
+
             m = metric_map[(model, subset)]
-            ax.text(
-                0.96,
-                0.04,
-                f"n = {int(m['n'])}\nMAE = {m['mae']:.4f}\n$R^2$ = {m['r2']:.4f}",
-                transform=ax.transAxes,
-                ha="right",
-                va="bottom",
-                bbox={
-                    "boxstyle": "round,pad=0.30",
-                    "facecolor": "white",
-                    "alpha": 0.88,
-                },
+
+            # Metrics -> upper right
+            add_metric_box(
+                ax,
+                (
+                    f"n = {int(m['n'])}\n"
+                    f"MAE = {m['mae']:.4f}\n"
+                    f"$R^2$ = {m['r2']:.4f}"
+                ),
             )
-        axes[0].set_ylabel("Predicted Norm_before (ensemble mean)")
+
+        axes[0].set_ylabel(
+            f"Predicted {target} (ensemble mean)"
+        )
+
         fig.tight_layout()
+
         fig.savefig(
             output_dir / f"scatter_{model}_single_double.png",
             dpi=220,
@@ -539,9 +619,12 @@ def make_plots(
             output_dir / f"scatter_{model}_single_double.pdf",
             bbox_inches="tight",
         )
+
         plt.close(fig)
 
-    # Three-model comparison, with single/double distinguished by marker.
+    # ------------------------------------------------------------------
+    # Multi-model comparison
+    # ------------------------------------------------------------------
     fig, axes = plt.subplots(
         1,
         len(models),
@@ -551,8 +634,13 @@ def make_plots(
     axes = axes[0]
 
     for ax, model in zip(axes, models):
-        y = all_predictions["y_true"].to_numpy(dtype=float)
-        p = all_predictions[f"{model}_ensemble_mean"].to_numpy(dtype=float)
+        y = all_predictions[
+            "y_true"
+        ].to_numpy(dtype=float)
+
+        p = all_predictions[
+            f"{model}_ensemble_mean"
+        ].to_numpy(dtype=float)
 
         if masks["single"].any():
             ax.scatter(
@@ -563,6 +651,7 @@ def make_plots(
                 marker="o",
                 label="single",
             )
+
         if masks["double"].any():
             ax.scatter(
                 y[masks["double"]],
@@ -573,41 +662,38 @@ def make_plots(
                 label="double",
             )
 
-        ax.plot(
-            [axis_lo, axis_hi],
-            [axis_lo, axis_hi],
-            linestyle="--",
-            linewidth=1.2,
-            label="y = x",
-        )
+        # y=x, x=1, y=1
+        add_reference_lines(ax)
+
         ax.set_xlim(axis_lo, axis_hi)
         ax.set_ylim(axis_lo, axis_hi)
         ax.set_aspect("equal", adjustable="box")
+
         ax.set_title(model)
-        ax.set_xlabel("True Norm_before")
+        ax.set_xlabel(f"True {target}")
         ax.grid(alpha=0.22)
-        ax.text(
-            0.96,
-            0.04,
+
+        # Metrics -> upper right
+        add_metric_box(
+            ax,
             metric_text(model),
-            transform=ax.transAxes,
-            ha="right",
-            va="bottom",
             fontsize=9,
-            bbox={
-                "boxstyle": "round,pad=0.30",
-                "facecolor": "white",
-                "alpha": 0.88,
-            },
         )
 
-    axes[0].set_ylabel("Predicted Norm_before (ensemble mean)")
+    axes[0].set_ylabel(
+        f"Predicted {target} (ensemble mean)"
+    )
+
+    # Keep legend in upper-left so it does not overlap metric box.
     axes[-1].legend(loc="upper left")
+
     fig.suptitle(
-        "Stage-5 3-checkpoint ensembles on new_validation",
+        f"Stage-5 checkpoint ensembles on new_validation — {target}",
         y=1.01,
     )
+
     fig.tight_layout()
+
     fig.savefig(
         output_dir / "scatter_P0_P1_P2_comparison.png",
         dpi=220,
@@ -617,6 +703,7 @@ def make_plots(
         output_dir / "scatter_P0_P1_P2_comparison.pdf",
         bbox_inches="tight",
     )
+
     plt.close(fig)
 
 
@@ -628,7 +715,7 @@ def main_controller(args) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     labels = read_csv_robust(new_validation)
-    validate_external_labels(labels)
+    validate_external_labels(labels,args.single_target)
 
     work_dir = output_dir / "_loader_work"
     if work_dir.exists() and not args.keep_work:
@@ -644,9 +731,14 @@ def main_controller(args) -> None:
     mordred_provenance: list[dict[str, object]] = []
 
     long_rows = []
+    target = args.single_target
+
     wide = pd.DataFrame({
         "ID": labels["ID"].astype(str),
-        "y_true": pd.to_numeric(labels["Norm_before"], errors="raise").astype(float),
+        "y_true": pd.to_numeric(
+        labels[target],
+        errors="raise",
+        ).astype(float),
     })
     if "Fifth_class" in labels.columns:
         wide["Fifth_class"] = normalized_fifth_class(labels["Fifth_class"])
@@ -705,6 +797,7 @@ def main_controller(args) -> None:
                 manifest_csv,
                 worker_dir,
                 mordred_path,
+                args.single_target,
             )
             pred = pd.read_csv(prediction_path, dtype={"ID": str})
 
@@ -752,18 +845,19 @@ def main_controller(args) -> None:
     metrics = pd.DataFrame(metric_rows)
     metrics.to_csv(output_dir / "ensemble_metrics.csv", index=False)
 
-    make_plots(wide, metrics, args.models, output_dir)
+    make_plots(wide, metrics, args.models, output_dir,args.single_target)
 
     provenance = {
         "stage5_root": str(stage5_root),
         "new_validation": str(new_validation),
         "models": args.models,
         "split_seeds": args.splits,
-        "target": "Norm_before",
+        "target": args.single_target,
         "ensemble": "arithmetic mean of selected_best checkpoint predictions",
         "label_leakage_policy": (
-            "All six property labels are zeroed in the loader-only external CSV; "
-            "true Norm_before is joined only after inference."
+            "All six property labels are zeroed in the loader-only "
+            "external CSV; "
+            f"true {args.single_target} is joined only after inference."
         ),
         "loader_workaround": (
             "Each external row is triplicated into non-empty train/val/test loader "
@@ -874,10 +968,14 @@ def main_worker(args) -> None:
 
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
 
-    if settings.get("single_target") != "Norm_before":
+    target = args.single_target
+
+    if settings.get("single_target") != target:
         raise ValueError(
-            f"Expected single_target=Norm_before, got {settings.get('single_target')!r}"
-        )
+        f"Expected single_target={target}, "
+        f"got {settings.get('single_target')!r}"
+    )
+
     if int(settings.get("property_num", -1)) != 1:
         raise ValueError(
             f"Expected property_num=1, got {settings.get('property_num')!r}"
@@ -918,10 +1016,13 @@ def main_worker(args) -> None:
     )
     cfg.component_vocab_source = str(training_vocab_source)
 
-    # True one-output Norm_before model.
+
+    target = args.single_target
+    target_index = TARGET_INDEX[target]
+
     cfg.property_num = 1
-    cfg.property_serial = 4
-    cfg.single_task_target_index = 4
+    cfg.property_serial = target_index
+    cfg.single_task_target_index = target_index
 
     cfg.dataset.diagnostic_split_path = str(external_manifest)
     cfg.dataset.diagnostic_id_column = "ID"
@@ -969,9 +1070,11 @@ def main_worker(args) -> None:
         raise KeyError(f"{checkpoint_path} has no model_state.")
 
     # Guard against accidentally loading a different task/architecture.
-    if checkpoint.get("single_target") not in (None, "Norm_before"):
+    if checkpoint.get("single_target") not in (None, target):
         raise ValueError(
-            f"Checkpoint single_target={checkpoint.get('single_target')!r}"
+            f"Checkpoint single_target="
+            f"{checkpoint.get('single_target')!r}; "
+            f"expected {target}"
         )
     if checkpoint.get("property_num") not in (None, 1):
         raise ValueError(
@@ -1090,6 +1193,12 @@ def parse_args():
     parser.add_argument("--worker-output", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--worker-cache", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--mordred-feature-path", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument(
+    "--single-target",
+    choices=("Norm_before", "Norm_after"),
+    default="Norm_before",
+    help="Single Norm target predicted by the checkpoints.",
+)
 
     return parser.parse_args()
 
