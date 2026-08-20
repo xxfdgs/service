@@ -9,7 +9,7 @@ BASE="${BASE:-results/input_graphgps_optimization/o12_input_700_multitasks_lr000
 FULL_INPUT="${FULL_INPUT:-$BASE/staging/20260812-sum-700_utf8.csv}"
 CONFIG="${CONFIG:-$BASE/core4/O12_split100/source_config.yaml}"
 FULL_MANIFESTS="${FULL_MANIFESTS:-results/input_graphgps_optimization/o12_fifth_identity_ood_seed100_109/fifth_identity_manifests}"
-OUT="${OUT:-results/input_graphgps_optimization/o14a_double_focused_fifth_identity_ood}"
+OUT="${OUT:-results/input_graphgps_optimization/o14a_double_focused_fifth_identity_ood_sigmoid_penalty_20260812_high_20}"
 
 # The primary protocol is deliberately not configurable to random.  The guard
 # prevents a typo or inherited shell environment from silently changing it.
@@ -22,7 +22,7 @@ SPLIT_PROTOCOL="${SPLIT_PROTOCOL:-fifth_identity_ood}"
 # Stage 1 default: matched ordinary-regression Full vs Double.  For Stage 2,
 # choose DOMAIN=full or DOMAIN=double after reviewing Stage 1, then set e.g.
 # ABLATIONS='A1 A2 A3'.  DOMAIN=both is intentionally rejected for A1+.
-DOMAIN="${DOMAIN:-both}"
+DOMAIN="${DOMAIN:-full}"
 ABLATIONS="${ABLATIONS:-A0}"
 read -r -a SPLIT_SEEDS <<< "${SPLIT_SEEDS:-100 101 102 103 104 105 106 107 108 109}"
 read -r -a TARGETS <<< "${TARGETS:-Norm_before Norm_after}"
@@ -73,24 +73,6 @@ for domain in "${DOMAINS[@]}"; do
                         --norm-positive-reg-weight 1.0)
                     objective_title="OrdinaryRegression"
                     ;;
-                A1)
-                    objective_args=(--enable-norm-threshold-aware --norm-threshold 1.0
-                        --norm-cls-loss-weight 0.5 --norm-fn-loss-weight 0.0
-                        --norm-positive-reg-weight 1.0)
-                    objective_title="AuxClassification"
-                    ;;
-                A2)
-                    objective_args=(--enable-norm-threshold-aware --norm-threshold 1.0
-                        --norm-cls-loss-weight 0.5 --norm-fn-loss-weight 1.0
-                        --norm-positive-reg-weight 1.0)
-                    objective_title="AuxClassificationCrossing"
-                    ;;
-                A3)
-                    objective_args=(--enable-norm-threshold-aware --norm-threshold 1.0
-                        --norm-cls-loss-weight 0.5 --norm-fn-loss-weight 1.0
-                        --norm-positive-reg-weight 1.5)
-                    objective_title="CrossingPositiveWeight15"
-                    ;;
             esac
             for split_seed in "${SPLIT_SEEDS[@]}"; do
                 manifest="$MANIFEST_DIR/$(manifest_name "$split_seed")"
@@ -121,6 +103,7 @@ for domain in "${DOMAINS[@]}"; do
                     --fifth-aa-vocab-size 12 --fifth-terminal-vocab-size 5 \
                     "${objective_args[@]}" --norm-threshold-selection-mae-tolerance 0.05 \
                     --execution-max-epochs 300 --include-test \
+                    --enable-norm-sigmoid-weighting --norm-weight-low 0.1 --norm-weight-high 20\
                     2>&1 | tee "$OUT/logs/$ablation/$domain/$target_slug/seed$split_seed.log"
             done
         done

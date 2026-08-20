@@ -1259,7 +1259,6 @@ def main():
                         help='O14-A squared false-negative threshold-crossing penalty weight.')
     parser.add_argument('--norm-positive-reg-weight', type=float, default=1.0,
                         help='Optional O14-A regression weight for double samples with true Norm > threshold.')
-    
     parser.add_argument('--enable-norm-sigmoid-weighting', action='store_true',
                         help='Enable smooth target-dependent regression weighting for a single Norm target. '
                              'Raw Norm values below --norm-threshold approach --norm-weight-low; '
@@ -1277,7 +1276,6 @@ def main():
     parser.add_argument('--norm-underprediction-weight', type=float, default=0.0,
                         help='Optional continuous squared underprediction penalty for double true-high Norm '
                              'samples.  This does not require or use the auxiliary classifier head.')
-    
     parser.add_argument('--min-double-high-per-batch', type=int, default=0,
                         help='Train-only deterministic oversampling control. With value 1, append a '
                              'double true-high Norm training row to every otherwise-empty batch. '

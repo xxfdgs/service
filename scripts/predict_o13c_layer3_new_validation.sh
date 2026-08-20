@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PYTHON="${PYTHON:-/home/puzexuan/anaconda3/envs/biology_prediction_gpu/bin/python}"
-MODEL_ROOT="${MODEL_ROOT:-results/input_graphgps_optimization/o13c_mean_graph_pooling_fifth_identity_ood_seed100_109_no_mordred_no_aux}"
+MODEL_ROOT="${MODEL_ROOT:-results/input_graphgps_optimization/o14a_double_focused_fifth_identity_ood_sigmoid_penalty_20260812/A0/full/norm_before}"
 NEW_VALIDATION="${NEW_VALIDATION:-datasets_lrx/raw/feedback/new_validation.csv}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$MODEL_ROOT/new_validation_ensemble}"
 SPLIT_SEEDS=(100 101 102 103 104 105 106 107 108 109)
