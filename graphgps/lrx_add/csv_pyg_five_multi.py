@@ -43,6 +43,10 @@ from ogb.utils.torch_util import replace_numpy_with_torchtensor
 import random
 from graph_feature import smiles2graph
 from graphgps.lrx_add.mordred_lookup import mordred_feature_vector
+from graphgps.lrx_add.fifth_descriptor_lookup import fifth_descriptor_vector
+from graphgps.lrx_add.fifth_semantic_lookup import fifth_semantic_vector
+from graphgps.lrx_add.fifth_structured_lookup import fifth_structured_values
+from graphgps.component_aux import component_aux_enabled
 
 from torch_geometric.utils.convert import to_networkx
 import networkx as nx
@@ -58,14 +62,26 @@ MORGAN_GENERATOR = rdFingerprintGenerator.GetMorganGenerator(
     radius=2, fpSize=128
 )
 _CURRENT_MORDRED_FEATURE = None
+_CURRENT_FIFTH_MECHANISTIC_FEATURE = None
+_CURRENT_FIFTH_SEMANTIC_FEATURE = None
+_CURRENT_FIFTH_AA_ID = None
+_CURRENT_FIFTH_TERMINAL_ID = None
+_CURRENT_FIFTH_TAIL = None
 _CURRENT_SAMPLE_UID = None
 _CURRENT_COMPONENT_VOCAB_ID = None
+_CURRENT_FIFTH_CLASS_ID = None
 
 
 def Data(*args, **kwargs):
     kwargs.setdefault('mordred_feat', _CURRENT_MORDRED_FEATURE)
+    kwargs.setdefault('fifth_mechanistic_feat', _CURRENT_FIFTH_MECHANISTIC_FEATURE)
+    kwargs.setdefault('fifth_semantic_feat', _CURRENT_FIFTH_SEMANTIC_FEATURE)
+    kwargs.setdefault('fifth_aa_id', _CURRENT_FIFTH_AA_ID)
+    kwargs.setdefault('fifth_terminal_id', _CURRENT_FIFTH_TERMINAL_ID)
+    kwargs.setdefault('fifth_tail_feat', _CURRENT_FIFTH_TAIL)
     kwargs.setdefault('sample_uid', _CURRENT_SAMPLE_UID)
     kwargs.setdefault('component_vocab_id', _CURRENT_COMPONENT_VOCAB_ID)
+    kwargs.setdefault('fifth_class_id', _CURRENT_FIFTH_CLASS_ID)
     return PyGData(*args, **kwargs)
 
 
@@ -79,18 +95,71 @@ def canonical_component_smiles(smiles):
     return Chem.MolToSmiles(molecule, canonical=True)
 
 
-def build_input_component_vocab(data):
-    """Build first-four-component vocabularies from the provided input table."""
-    columns = ['IL_SMILE', 'HL_SMILE', 'Chol_SMILE', 'PEG_SMILE']
+def build_input_component_vocab(data, reserve_unknown=True):
+    """Build five input-only component vocabularies from the active CSV.
+
+    ``reserve_unknown=False`` is a strict ablation for the first four
+    component positions: only canonical structures present in ``data`` are
+    assigned IDs, starting at zero.  Missing or malformed first-four
+    structures are rejected instead of receiving an unknown category.  The
+    fifth position can legitimately be absent and is graph encoded by O12, so
+    an observed ``[Fr]`` remains part of its source vocabulary.
+    """
+    columns = ['IL_SMILE', 'HL_SMILE', 'Chol_SMILE', 'PEG_SMILE', 'Fifth_SMILE']
     vocabularies = []
-    for column in columns:
+    for component_index, column in enumerate(columns):
         keys = sorted({canonical_component_smiles(value) for value in data[column]})
-        # Reserve a deterministic unknown/placeholder item so prediction-time
-        # malformed components do not make an embedding lookup invalid.
-        if '[Fr]' not in keys:
+        if not reserve_unknown and component_index < 4 and '[Fr]' in keys:
+            raise ValueError(
+                f'Strict component vocabulary rejects missing or malformed '
+                f'{column} values in the vocabulary source.')
+        # The normal path reserves a deterministic unknown/placeholder item.
+        # The strict path contains only source-data categories.
+        if reserve_unknown and '[Fr]' not in keys:
             keys.insert(0, '[Fr]')
         vocabularies.append({key: index for index, key in enumerate(keys)})
     return vocabularies
+
+
+def component_vocab_id(vocabulary, smiles, component_index, strict=False):
+    """Resolve one component ID and validate it before embedding lookup."""
+    component_key = canonical_component_smiles(smiles)
+    if strict and component_key not in vocabulary:
+        raise ValueError(
+            f'Strict component vocabulary has no entry for '
+            f'component {component_index}: {component_key!r}.')
+    vocab_id = vocabulary.get(component_key, 0)
+    if vocab_id < 0 or vocab_id >= len(vocabulary):
+        raise IndexError(
+            f'Component {component_index} vocabulary ID {vocab_id} is '
+            f'outside [0, {len(vocabulary) - 1}].')
+    return vocab_id
+
+
+def canonical_fifth_class(value):
+    """Normalize a user-supplied fifth-component class without target data."""
+    if pd.isna(value) or str(value).strip() == '':
+        return '__unknown__'
+    return str(value).strip().lower()
+
+
+def build_input_fifth_class_vocab(data):
+    """Build the deterministic fifth-class vocabulary from the input CSV."""
+    values = (
+        data['Fifth_class']
+        if 'Fifth_class' in data.columns
+        else pd.Series(['__unknown__'])
+    )
+    keys = sorted({canonical_fifth_class(value) for value in values})
+    if '__unknown__' not in keys:
+        keys.insert(0, '__unknown__')
+    return {key: index for index, key in enumerate(keys)}
+
+
+def input_fifth_class_id(vocabulary, value):
+    """Map a class label to the input-derived vocabulary's unknown-safe ID."""
+    return vocabulary.get(
+        canonical_fifth_class(value), vocabulary['__unknown__'])
 
 
 def molecular_aux_features(molecule):
@@ -171,15 +240,25 @@ def addCyclicConnection(mol):
 
 def smiles_to_data_5(smiles_item, label_pair_list,ratio_pair_list,
                      data_sum_1, data_sum_2,data_sum_3, data_sum_4,data_sum_5,property_num,property_name,
-                     sample_index=None, component_vocabularies=None):
-    global _CURRENT_MORDRED_FEATURE, _CURRENT_SAMPLE_UID, _CURRENT_COMPONENT_VOCAB_ID
+                     sample_index=None, component_vocabularies=None,
+                     fifth_class_id=None):
+    global _CURRENT_MORDRED_FEATURE, _CURRENT_FIFTH_MECHANISTIC_FEATURE, _CURRENT_FIFTH_SEMANTIC_FEATURE, _CURRENT_FIFTH_AA_ID, _CURRENT_FIFTH_TERMINAL_ID, _CURRENT_FIFTH_TAIL
+    global _CURRENT_SAMPLE_UID, _CURRENT_COMPONENT_VOCAB_ID
+    global _CURRENT_FIFTH_CLASS_ID
     _CURRENT_SAMPLE_UID = torch.tensor([int(sample_index)], dtype=torch.long) if sample_index is not None else None
+    _CURRENT_FIFTH_CLASS_ID = torch.tensor(
+        [int(fifth_class_id or 0)], dtype=torch.long)
     for num, smiles_item_each in enumerate(smiles_item):
         # print('serial-num= ', num)
         try:
-            if num < 4 and component_vocabularies is not None:
+            if component_vocabularies is not None:
                 vocabulary = component_vocabularies[num]
-                vocab_id = vocabulary.get(canonical_component_smiles(smiles_item_each), 0)
+                vocab_id = component_vocab_id(
+                    vocabulary,
+                    smiles_item_each,
+                    num + 1,
+                    strict=bool(getattr(cfg, 'component_vocab_strict', False)),
+                )
                 _CURRENT_COMPONENT_VOCAB_ID = torch.tensor([vocab_id], dtype=torch.long)
             else:
                 _CURRENT_COMPONENT_VOCAB_ID = torch.tensor([0], dtype=torch.long)
@@ -206,7 +285,7 @@ def smiles_to_data_5(smiles_item, label_pair_list,ratio_pair_list,
 
             edge_index = torch.from_numpy(graph['edge_index']).to(torch.int64)
             edge_attr = torch.from_numpy(graph['edge_feat'].flatten()).to(torch.long)
-            if cfg.use_component_aux_features:
+            if component_aux_enabled(cfg, num):
                 aux_feat = torch.from_numpy(
                     molecular_aux_features(mol_)
                 ).view(1, -1)
@@ -216,16 +295,78 @@ def smiles_to_data_5(smiles_item, label_pair_list,ratio_pair_list,
                 smiles_item_each, cfg.use_mordred_features,
                 cfg.mordred_feature_path, cfg.mordred_feature_dim,
             )).view(1, -1)
+            # O13-E descriptors belong only to component 5. Components 1-4
+            # receive a same-shaped zero tensor so PyG batching is stable,
+            # while the model consumes only ``data5`` below.
+            _CURRENT_FIFTH_MECHANISTIC_FEATURE = torch.from_numpy(
+                fifth_descriptor_vector(
+                    smiles_item_each,
+                    bool(cfg.use_fifth_mechanistic_descriptors and num == 4),
+                    cfg.fifth_mechanistic_descriptor_path,
+                    cfg.fifth_mechanistic_descriptor_dim,
+                )
+            ).view(1, -1)
+            _CURRENT_FIFTH_SEMANTIC_FEATURE = torch.from_numpy(
+                fifth_semantic_vector(
+                    smiles_item_each,
+                    bool(cfg.use_fifth_semantic_features and num == 4),
+                    cfg.fifth_semantic_feature_path,
+                    cfg.fifth_semantic_feature_dim,
+                )
+            ).view(1, -1)
+            aa_id, terminal_id, tail, tail_mask = fifth_structured_values(
+                smiles_item_each, bool(cfg.use_fifth_structured_features and num == 4),
+                cfg.fifth_structured_feature_path)
+            _CURRENT_FIFTH_AA_ID = torch.tensor([aa_id], dtype=torch.long)
+            _CURRENT_FIFTH_TERMINAL_ID = torch.tensor([terminal_id], dtype=torch.long)
+            _CURRENT_FIFTH_TAIL = torch.tensor([[tail, tail_mask]], dtype=torch.float32)
 
-            if property_num == 4:
-                # y = torch.Tensor([label_pair_list[0]])
-                # y1 = torch.Tensor([label_pair_list[1]])
-                # y2 = torch.Tensor([label_pair_list[2]])
-                # y3 = torch.Tensor([label_pair_list[3]])
-                y = torch.Tensor([label_pair_list[0]/100])
-                y1 = torch.Tensor([label_pair_list[1]/100])
-                y2 = torch.Tensor([label_pair_list[2]/100])
-                y3 = torch.Tensor([label_pair_list[3]/100])
+            if property_num == 1:
+                target_index = int(getattr(cfg, 'single_task_target_index', property_name))
+                if target_index not in range(6):
+                    raise ValueError(
+                        'single_task_target_index must be an integer from 0 to 5, '
+                        f'got {target_index}.')
+                # The first four efficiency labels use the historical /100
+                # normalization; Norm_before and Norm_after remain in their
+                # original units, exactly as in the two-task loader branch.
+                target_value = label_pair_list[target_index]
+                y = torch.Tensor([target_value / 100 if target_index < 4 else target_value])
+                if num == 0:
+                    data_1 = Data(x, edge_index, edge_attr, y, ratio=ratio_pair_list[num], mask=mask_, aux_feat=aux_feat)
+                    data_sum_1.append(data_1)
+                elif num == 1:
+                    data_2 = Data(x, edge_index, edge_attr, y, ratio=ratio_pair_list[num], mask=mask_, aux_feat=aux_feat)
+                    data_sum_2.append(data_2)
+                elif num == 2:
+                    data_3 = Data(x, edge_index, edge_attr, y, ratio=ratio_pair_list[num], mask=mask_, aux_feat=aux_feat)
+                    data_sum_3.append(data_3)
+                elif num == 3:
+                    data_4 = Data(x, edge_index, edge_attr, y, ratio=ratio_pair_list[num], mask=mask_, aux_feat=aux_feat)
+                    data_sum_4.append(data_4)
+                elif num == 4:
+                    if str(smiles_item_each) == 'nan' or str(ratio_pair_list[num]) == 'nan':
+                        data_5 = Data(x, edge_index, edge_attr, y, ratio=0.0, mask=mask_, aux_feat=aux_feat)
+                    else:
+                        data_5 = Data(x, edge_index, edge_attr, y, ratio=ratio_pair_list[num], mask=mask_, aux_feat=aux_feat)
+                    data_sum_5.append(data_5)
+            elif property_num == 4:
+                # A four-task model can select any four source labels.  The
+                # historical core4 setup remains the default; later4 selects
+                # [Aerosolization, Recovery, Norm_before, Norm_after].
+                target_indices = list(getattr(
+                    cfg, 'multi_task_target_indices', [0, 1, 2, 3]))
+                if len(target_indices) != 4 or any(index not in range(6) for index in target_indices):
+                    raise ValueError(
+                        'multi_task_target_indices must contain four source-label indices in [0, 5].')
+                selected_labels = [
+                    label_pair_list[index] / 100 if index < 4 else label_pair_list[index]
+                    for index in target_indices
+                ]
+                y = torch.Tensor([selected_labels[0]])
+                y1 = torch.Tensor([selected_labels[1]])
+                y2 = torch.Tensor([selected_labels[2]])
+                y3 = torch.Tensor([selected_labels[3]])
                 if num == 0:
                     data_1 = Data(x, edge_index, edge_attr, y, y1=y1, y2=y2, y3=y3, ratio=ratio_pair_list[num], mask=mask_, aux_feat=aux_feat)
                     data_sum_1.append(data_1)
@@ -240,7 +381,7 @@ def smiles_to_data_5(smiles_item, label_pair_list,ratio_pair_list,
                     data_sum_4.append(data_4)
                 elif num == 4:
                     if str(smiles_item_each) == 'nan' or str(ratio_pair_list[num]) == 'nan' \
-                            or int(ratio_pair_list[num]) == 0:
+                            or float(ratio_pair_list[num]) <= 1e-10:
                         data_5 = Data(x, edge_index, edge_attr, y, y1=y1, y2=y2, y3=y3, ratio=0.0, mask=mask_, aux_feat=aux_feat)
                         data_sum_5.append(data_5)
                     else:
@@ -325,9 +466,29 @@ class LRX_five_multi(InMemoryDataset):
         ####
         data = pd.read_csv(self.raw_paths[0])
         data['_stage3_source_index'] = np.arange(len(data), dtype=np.int64)
-        component_vocabularies = build_input_component_vocab(data)
-        cfg.component_vocab_sizes = [len(vocabulary) for vocabulary in component_vocabularies]
-        cfg.component_vocab_source = os.path.abspath(self.raw_paths[0])
+        # A trained OneHotEmbedGPS checkpoint owns the categorical vocabulary
+        # used to size and index its first-four-component embeddings.  During
+        # external inference, derive that vocabulary from the original input
+        # CSV when cfg.component_vocab_source is supplied; unseen external
+        # molecules then map to the established unknown ID instead of
+        # rebuilding (and silently reindexing) the checkpoint vocabulary.
+        vocabulary_source = str(getattr(cfg, 'component_vocab_source', '')).strip()
+        source_path = os.path.abspath(self.raw_paths[0])
+        if vocabulary_source and os.path.isfile(vocabulary_source):
+            vocabulary_path = os.path.abspath(vocabulary_source)
+            vocabulary_data = data if vocabulary_path == source_path else pd.read_csv(vocabulary_path)
+        else:
+            vocabulary_path = source_path
+            vocabulary_data = data
+        component_vocabularies = build_input_component_vocab(
+            vocabulary_data,
+            reserve_unknown=not bool(getattr(cfg, 'component_vocab_strict', False)),
+        )
+        fifth_class_vocabulary = build_input_fifth_class_vocab(vocabulary_data)
+        cfg.component_vocab_sizes = [len(vocabulary) for vocabulary in component_vocabularies[:4]]
+        cfg.fifth_component_vocab_size = len(component_vocabularies[4])
+        cfg.fifth_class_vocab_size = len(fifth_class_vocabulary)
+        cfg.component_vocab_source = vocabulary_path
         diagnostic_split_path = str(cfg.dataset.diagnostic_split_path).strip()
         if diagnostic_split_path:
             split_data = pd.read_csv(diagnostic_split_path)
@@ -408,6 +569,11 @@ class LRX_five_multi(InMemoryDataset):
             smiles_list = [list(pair_smi) for pair_smi in zip(molecule_1, molecule_2,molecule_3,molecule_4,molecule_5)]
             ratio_list = [list(pair_rate) for pair_rate in zip(rate_1, rate_2, rate_3, rate_4, rate_5)]
             label_list = [list(pair_y) for pair_y in zip(y1_list, y2_list, y3_list, y4_list, y5_list,y6_list)]
+            fifth_class_list = (
+                list(item['Fifth_class'])
+                if 'Fifth_class' in item.columns
+                else ['__unknown__'] * len(item)
+            )
             sample_index_list = list(item['_stage3_source_index'])
 
             data_sum_1, data_sum_2,data_sum_3, data_sum_4,data_sum_5 = [],[],[],[],[]
@@ -417,17 +583,23 @@ class LRX_five_multi(InMemoryDataset):
                     if (idx %2000) == 0 :
                         print('idx',idx)
                     smi_pair_list, label_pair_list, ratio_pair_list = smiles_list[idx], label_list[idx], ratio_list[idx]
+                    fifth_class_id = input_fifth_class_id(
+                        fifth_class_vocabulary, fifth_class_list[idx])
                     data_sum_1, data_sum_2,data_sum_3, data_sum_4,data_sum_5 = smiles_to_data_5(smi_pair_list, label_pair_list,ratio_pair_list,
                                                               data_sum_1, data_sum_2,data_sum_3, data_sum_4,data_sum_5,property_num,property_name,
-                                                              sample_index=sample_index_list[idx], component_vocabularies=component_vocabularies)
+                                                              sample_index=sample_index_list[idx], component_vocabularies=component_vocabularies,
+                                                              fifth_class_id=fifth_class_id)
             else:
                 for idx in range(idx_sum):
                     if (idx %2000) == 0 :
                         print('idx',idx)
                     smi_pair_list, label_pair_list, ratio_pair_list = smiles_list[idx], label_list[idx], ratio_list[idx]
+                    fifth_class_id = input_fifth_class_id(
+                        fifth_class_vocabulary, fifth_class_list[idx])
                     data_sum_1, data_sum_2,data_sum_3, data_sum_4,data_sum_5 = smiles_to_data_5(smi_pair_list, label_pair_list,ratio_pair_list,
                                                               data_sum_1, data_sum_2,data_sum_3, data_sum_4,data_sum_5,property_num,property_name,
-                                                              sample_index=sample_index_list[idx], component_vocabularies=component_vocabularies)
+                                                              sample_index=sample_index_list[idx], component_vocabularies=component_vocabularies,
+                                                              fifth_class_id=fifth_class_id)
 
 
             if key == 0:

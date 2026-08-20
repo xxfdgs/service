@@ -42,6 +42,7 @@ from ogb.utils.torch_util import replace_numpy_with_torchtensor
 import random
 from graph_feature import smiles2graph
 from graphgps.lrx_add.mordred_lookup import mordred_feature_vector
+from graphgps.component_aux import component_aux_enabled
 # picture
 
 from torch_geometric.utils.convert import to_networkx
@@ -157,7 +158,7 @@ def smiles_to_data_5(smiles_item, label_pair_list,ratio_pair_list,
             # after add 2023.02.03
             edge_index = torch.from_numpy(graph['edge_index']).to(torch.int64)
             edge_attr = torch.from_numpy(graph['edge_feat'].flatten()).to(torch.long)
-            if cfg.use_component_aux_features:
+            if component_aux_enabled(cfg, num):
                 aux_feat = torch.from_numpy(
                     molecular_aux_features(mol_)
                 ).view(1, -1)

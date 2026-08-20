@@ -1,0 +1,102 @@
+# Prediction config for O12 (OneHotEmbedGPS + aux + all Mordred + attn0.2)
+# Checkpoint: results/O12_predict_checkpoint
+out_dir: results
+accelerator: cuda
+devices: 1
+gpu_serial: 0
+num_workers: 0
+metric_best: mae_sum
+metric_agg: argmin
+wandb:
+  use: False
+dataset:
+  dir: datasets_lrx
+  format: PyG-ZINC
+  name: subset
+  task: graph
+  task_type: regression
+  transductive: False
+  node_encoder: True
+  node_encoder_name: TypeDictNode+RWSE
+  node_encoder_num_types: 119
+  node_encoder_bn: False
+  edge_encoder: True
+  edge_encoder_name: TypeDictEdge
+  edge_encoder_num_types: 4
+  edge_encoder_bn: False
+  data_mask: False
+  cache_per_run: True
+  cache_refresh: True
+  cache_tag: O12_predict
+posenc_RWSE:
+  enable: True
+  kernel:
+    times_func: range(1,21)
+  model: Linear
+  dim_pe: 28
+  raw_norm_type: BatchNorm
+train:
+  mode: double_predict
+  batch_size: 4
+  eval_period: 1
+  ckpt_period: 10
+model:
+  type: OneHotEmbedGPS
+  loss_fun: l1
+  temperature: 0.1
+  use_cosine_similarity: True
+  edge_decoding: dot
+  graph_pooling: add
+gt:
+  layer_type: GINE+Transformer
+  layers: 2
+  n_heads: 4
+  dim_hidden: 64
+  dropout: 0.1
+  attn_dropout: 0.2
+  layer_norm: False
+  batch_norm: True
+gnn:
+  head: double_graph
+  layers_pre_mp: 0
+  layers_post_mp: 3
+  dim_inner: 64
+  batchnorm: True
+  act: relu
+  dropout: 0.0
+  agg: mean
+  normalize_adj: False
+optim:
+  clip_grad_norm: True
+  optimizer: adamW
+  weight_decay: 1e-5
+  base_lr: 0.01
+  max_epoch: 1
+  scheduler: cosine_with_warmup
+  num_warmup_epochs: 50
+pretrained:
+  dir: results/O12_predict_checkpoint
+  freeze_main: False
+  reset_prediction_head: False
+data_rate: True
+data_rate_type: True
+read_multi: False
+read_csv: input/20260703_sum_utf8.csv
+save_path: ./results/
+property_num: 4
+property_serial: 1
+result_out: False
+# data_rate=True places the entire input CSV in the validation loader; the
+# train/test loaders are only small placeholders. Keep legacy single-loader
+# prediction so the output contains each input row exactly once.
+predict_all_splits: False
+seed: 0
+use_mordred_features: True
+mordred_feature_dim: 11
+mordred_feature_path: results/input_graphgps_optimization/features/mordred11_train_standardized.csv
+mordred_fifth_only: False
+use_component_aux_features: True
+component_aux_dim: 136
+component_vocab_sizes: [3, 4, 3, 4]
+component_vocab_source: results/new_dataset_benchmark_20260713/input_sanitized_utf8.csv
+coarse_grain_enable: False

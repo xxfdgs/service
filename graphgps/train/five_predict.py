@@ -55,13 +55,20 @@ def eval_epoch_multiple(logger, loader, loaders_2, loaders_3, loaders_4, loaders
     PROPERTY_NUM = cfg.property_num
     batch_size = cfg.train.batch_size
 
+    prediction_frames = []
     for iter,list_ in enumerate(list_load):
         batch = list_[0]
         batch.split = split
         batch.to(torch.device(cfg.accelerator, cfg.gpu_serial))
 
         batch,batch_2,batch_3,batch_4,batch_5 = list_[0],list_[1],list_[2],list_[3],list_[4]
-        if split == 'val':
+        if split == 'train':
+            batch.split = 'train'
+            batch_2.split = 'train_2'
+            batch_3.split = 'train_3'
+            batch_4.split = 'train_4'
+            batch_5.split = 'train_5'
+        elif split == 'val':
             batch.split = 'val'
             batch_2.split = 'val_2'
             batch_3.split = 'val_3'
@@ -129,17 +136,21 @@ def eval_epoch_multiple(logger, loader, loaders_2, loaders_3, loaders_4, loaders
             A_csv_name = ['true_Norm_before', 'pred_Norm_before',
                           'true_Norm_after', 'pred_Norm_after']
         A_csv = pd.DataFrame(columns=A_csv_name, data=A_csv_data)
+        # Only the final padded batch contains artificial samples.  Trim it
+        # before appending so several split loaders can safely be evaluated in
+        # one prediction invocation.
+        if iter == len(list_load) - 1:
+            valid_count = int((batch.sum.detach().to(
+                'cpu', non_blocking=True)).numpy()[0])
+            A_csv = A_csv.iloc[:valid_count]
+        prediction_frames.append(A_csv)
+
+    if prediction_frames:
         csv_name = 'test_true_pred_sum.csv'
+        A_csv = pd.concat(prediction_frames, axis=0, ignore_index=True)
         read_csv = pd.read_csv(cfg.run_dir + csv_name, index_col=0)
-        # read_csv_ = pd.merge(read_csv,A_csv,how='outer')
-        read_csv_ = pd.concat([read_csv, A_csv], axis=0)
-        read_csv_.reset_index(drop=True, inplace=True)
+        read_csv_ = pd.concat([read_csv, A_csv], axis=0, ignore_index=True)
         read_csv_.to_csv(cfg.run_dir + csv_name)
-        # print('len(read_csv) + len(A_csv)', len(read_csv),len(read_csv_), len(A_csv),iter)
-    cut_ = (batch.sum.detach().to('cpu', non_blocking=True)).numpy()[0]
-    read_csv_ = read_csv_[:cut_]
-    read_csv_.reset_index(drop=True, inplace=True)
-    read_csv_.to_csv(cfg.run_dir + csv_name)
 
 
 @torch.no_grad()
@@ -154,7 +165,13 @@ def eval_epoch_single(logger, loader, loaders_2, loaders_3, loaders_4, loaders_5
         batch.to(torch.device(cfg.accelerator, cfg.gpu_serial))
 
         batch, batch_2, batch_3, batch_4, batch_5 = list_[0], list_[1], list_[2], list_[3], list_[4]
-        if split == 'val':
+        if split == 'train':
+            batch.split = 'train'
+            batch_2.split = 'train_2'
+            batch_3.split = 'train_3'
+            batch_4.split = 'train_4'
+            batch_5.split = 'train_5'
+        elif split == 'val':
             batch.split = 'val'
             batch_2.split = 'val_2'
             batch_3.split = 'val_3'
@@ -289,7 +306,12 @@ def custom_train(loggers, loaders, loaders_2, loaders_3, loaders_4, loaders_5, m
 
     # if cfg.result_out ==False:
     num_splits = len(loggers)
-    split_names = ['test']
+    if cfg.predict_all_splits:
+        split_indices = range(num_splits)
+        split_names = ['train', 'val', 'test']
+    else:
+        split_indices = range(1, num_splits - 1)
+        split_names = ['test']
     # perf = [[] for _ in range(num_splits)]
     #add csv_sum
     if cfg.property_num == 1:  ### single property
@@ -307,13 +329,12 @@ def custom_train(loggers, loaders, loaders_2, loaders_3, loaders_4, loaders_5, m
     for cur_epoch in range(start_epoch, cfg.optim.max_epoch):
         start_time = time.perf_counter()
         if is_eval_epoch(cur_epoch):
-            for i in range(1, num_splits-1):
+            for i in split_indices:
+                split_name = split_names[i] if cfg.predict_all_splits else split_names[i - 1]
                 if cfg.property_num == 1:
                     eval_epoch_single(loggers[i], loaders[i], loaders_2[i], loaders_3[i], loaders_4[i], loaders_5[i]
-                               , model, split=split_names[i - 1])
+                               , model, split=split_name)
                 elif cfg.property_num == 2 or cfg.property_num == 4:
                     eval_epoch_multiple(loggers[i], loaders[i], loaders_2[i], loaders_3[i], loaders_4[i], loaders_5[i]
-                                      , model, split=split_names[i - 1])
-
-
+                                      , model, split=split_name)
 

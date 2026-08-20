@@ -79,6 +79,12 @@ def main() -> None:
                 "candidate": summary["candidate"],
                 "fusion_type": summary["fusion_type"],
                 "head_type": summary["head_type"],
+                "model_type": settings.get("model_type"),
+                "loss_targets": ",".join(summary.get("loss_targets", TARGETS)),
+                "use_mordred_features": bool(settings.get("use_mordred_features", False)),
+                "use_component_aux_features": bool(settings.get("use_component_aux_features", False)),
+                "use_fifth_identity_embedding": bool(settings.get("use_fifth_identity_embedding", False)),
+                "use_fifth_ratio_modulation": bool(settings.get("use_fifth_ratio_modulation", False)),
                 "best_epoch": int(summary["best_epoch"]),
                 "best_validation_loss_normalized": float(summary["best_validation_loss_normalized"]),
                 "last_epoch": int(summary["last_epoch"]),
@@ -94,6 +100,12 @@ def main() -> None:
             "architecture": summary["architecture_name"],
             "candidate": summary["candidate"],
             "fusion_type": summary["fusion_type"], "head_type": summary["head_type"],
+            "model_type": settings.get("model_type"),
+            "loss_targets": ",".join(summary.get("loss_targets", TARGETS)),
+            "use_mordred_features": bool(settings.get("use_mordred_features", False)),
+            "use_component_aux_features": bool(settings.get("use_component_aux_features", False)),
+            "use_fifth_identity_embedding": bool(settings.get("use_fifth_identity_embedding", False)),
+            "use_fifth_ratio_modulation": bool(settings.get("use_fifth_ratio_modulation", False)),
             "base_lr": settings.get("base_lr"), "weight_decay": settings.get("weight_decay"),
             "batch_size": settings.get("batch_size"), "head_hidden_dim": settings.get("head_hidden_dim"),
             "head_dropout": settings.get("head_dropout"),
@@ -102,7 +114,7 @@ def main() -> None:
     result.to_csv(root / "best_epoch_metrics.csv", index=False)
     pd.DataFrame(inventory).to_csv(root / "experiment_inventory.csv", index=False)
     if not result.empty:
-        summary = result.groupby(["experiment", "architecture", "candidate", "fusion_type", "head_type", "best_epoch", "split"], as_index=False).agg(
+        summary = result.groupby(["experiment", "architecture", "candidate", "fusion_type", "head_type", "model_type", "loss_targets", "use_mordred_features", "use_component_aux_features", "use_fifth_identity_embedding", "use_fifth_ratio_modulation", "best_epoch", "split"], as_index=False).agg(
             n_per_target=("n", "first"), mean_mae=("mae", "mean"), mean_rmse=("rmse", "mean"),
             mean_r2=("r2", "mean"), mean_pearson=("pearson", "mean"), mean_spearman=("spearman", "mean"),
         )

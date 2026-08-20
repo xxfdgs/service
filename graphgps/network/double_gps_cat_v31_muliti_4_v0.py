@@ -7,6 +7,7 @@ from torch_geometric.graphgym.models.layer import (new_layer_config,
 from torch_geometric.graphgym.register import register_network
 
 from graphgps.layer.gps_layer import GPSLayer
+from graphgps.component_aux import component_aux_enabled
 import torch.nn as nn
 
 
@@ -374,6 +375,14 @@ class GPSModel(torch.nn.Module):
         # 这样模型可以区分同一分子出现在不同组分位置时的不同意义。
         self.component_type_emb = nn.Embedding(5, self.hidden_dim)
 
+        # Optional input-only exact identity for the structurally diverse
+        # fifth component.  It augments (rather than replaces) the shared
+        # GraphGPS molecular embedding, and is off by default to preserve the
+        # historical checkpoint path.
+        if cfg.use_fifth_identity_embedding:
+            self.fifth_component_embedding = nn.Embedding(
+                int(cfg.fifth_component_vocab_size), self.hidden_dim)
+
         if cfg.use_component_aux_features:
             self.aux_feature_encoder = nn.Sequential(
                 nn.Linear(cfg.component_aux_dim, self.hidden_dim, bias=True),
@@ -614,7 +623,18 @@ class GPSModel(torch.nn.Module):
         type_emb = self.component_type_emb(comp_id)
         # [B, hidden_dim]
 
-        if cfg.use_component_aux_features:
+        if component_index == 4 and cfg.use_fifth_identity_embedding:
+            if not hasattr(rep, 'component_vocab_id'):
+                raise ValueError('Fifth identity embedding requires component_vocab_id.')
+            fifth_ids = rep.component_vocab_id.view(-1).long()
+            if fifth_ids.numel() != B or fifth_ids.min() < 0 \
+                    or fifth_ids.max() >= self.fifth_component_embedding.num_embeddings:
+                raise ValueError('Fifth component identity is outside the input-only vocabulary.')
+            molecule_identity_emb = self.fifth_component_embedding(fifth_ids)
+        else:
+            molecule_identity_emb = torch.zeros_like(graph_emb)
+
+        if component_aux_enabled(cfg, component_index):
             aux_feat = rep.aux_feat.view(B, -1).float()
             if aux_feat.size(1) != cfg.component_aux_dim:
                 raise ValueError(
@@ -628,7 +648,8 @@ class GPSModel(torch.nn.Module):
 
         # 不再使用 prefix_emb * graph_emb
         # 改为图嵌入、比例、组分身份和分子级辅助特征的加和融合
-        comp_emb = self.component_norm(graph_emb + ratio_emb + type_emb + aux_emb)
+        comp_emb = self.component_norm(
+            graph_emb + ratio_emb + type_emb + aux_emb + molecule_identity_emb)
 
         # ratio = 0 时，该组分嵌入置零
         is_present = ratio_feat[:, 3:4]

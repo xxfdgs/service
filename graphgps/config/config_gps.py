@@ -483,6 +483,10 @@ def set_cfg_gps(cfg):
     cfg.fifth_component_delta_weight = 1.0
     cfg.use_component_aux_features = False
     cfg.component_aux_dim = 136
+    # One-based component positions receiving the optional RDKit/Morgan
+    # auxiliary branch.  Keeping all five as the default preserves existing
+    # configs and checkpoints created before selective auxiliary features.
+    cfg.component_aux_components = [1, 2, 3, 4, 5]
     cfg.coarse_grain_enable = False
     cfg.coarse_grain_min_chain_length = 6
     cfg.coarse_grain_chain_length_scale = 20.0
@@ -502,11 +506,53 @@ def set_cfg_gps(cfg):
     cfg.mordred_feature_dim = 0
     cfg.mordred_feature_path = ''
     cfg.mordred_fifth_only = False
+    # O13-E: an opt-in, seed-standardized descriptor vector for component 5
+    # only.  It is separate from the historical all-component Mordred branch
+    # so the new molecular topology information cannot leak to components 1-4.
+    cfg.use_fifth_mechanistic_descriptors = False
+    cfg.fifth_mechanistic_descriptor_dim = 0
+    cfg.fifth_mechanistic_descriptor_path = ''
+    # O13-F: an independent, component-5-only semantic series branch.  Its
+    # lookup is fitted per manifest on train occurrences only.
+    cfg.use_fifth_semantic_features = False
+    cfg.fifth_semantic_feature_dim = 0
+    cfg.fifth_semantic_feature_path = ''
+    cfg.use_fifth_structured_features = False
+    cfg.architecture_family = 'O12'
+    cfg.fifth_structured_feature_path = ''
+    cfg.fifth_aa_vocab_size = 1
+    cfg.fifth_terminal_vocab_size = 1
+    cfg.fifth_aa_embedding_dim = 8
+    cfg.fifth_terminal_embedding_dim = 4
+
+    # O14-A is opt-in.  Keeping the head disabled preserves legacy checkpoint
+    # shapes and the exact regression-only forward contract.
+    cfg.use_norm_threshold_head = False
+    cfg.norm_threshold = 1.0
+    cfg.norm_cls_loss_weight = 0.5
+    cfg.norm_fn_loss_weight = 1.0
+    cfg.norm_positive_reg_weight = 1.0
     # Populated by the five-component loader from the current input CSV before
     # OneHotEmbedGPS is instantiated.  Keeping it in cfg makes the embedding
     # table size reproducible in the saved effective configuration.
     cfg.component_vocab_sizes = [1, 1, 1, 1]
     cfg.component_vocab_source = ''
+    # By default each component vocabulary reserves ID 0 for an external
+    # unknown/[Fr] placeholder.  Strict ablations can disable that extra row
+    # and require every observed component to belong to the source vocabulary.
+    cfg.component_vocab_strict = False
+    cfg.fifth_component_vocab_size = 1
+    cfg.use_fifth_identity_embedding = False
+    # Optional coarse formulation metadata supplied by the input table.  The
+    # vocabulary is learned from input only and lets grouped-OOD experiments
+    # distinguish, for example, single- and double-component fifth additives
+    # without encoding a target-derived category.
+    cfg.fifth_class_vocab_size = 1
+    cfg.use_fifth_class_embedding = False
+    # The fifth component is graph-encoded rather than looked up.  Keep its
+    # optional composition-conditioned feature modulation explicit and off by
+    # default so existing OneHotEmbedGPS checkpoints remain reproducible.
+    cfg.use_fifth_ratio_modulation = False
     # Off by default.  The fold-collapse diagnostic can temporarily force
     # uniform three-branch fusion without changing any historical run.
     cfg.diagnostic_uniform_fusion = False
@@ -521,15 +567,44 @@ def set_cfg_gps(cfg):
     cfg.model.fusion_dropout = 'current'
     cfg.model.head_dropout = 'current'
     cfg.model.target_specific_heads = False
+    # Stage-8 optional second Fifth encoder.  When enabled this branch is
+    # restored from a Stage-4 checkpoint and remains permanently frozen; the
+    # normal comp5_encoder is still the task-specific trainable branch.
+    cfg.model.frozen_comp5_aux_enable = False
+    cfg.model.frozen_comp5_aux_label = 'none'
+    cfg.model.frozen_comp5_aux_checkpoint_sha256 = None
+    cfg.model.frozen_comp5_aux_parameter_count = 0
+    cfg.model.frozen_comp5_aux_trainable_parameter_count = 0
+    cfg.model.frozen_comp5_aux_optimizer_parameter_count = 0
+    cfg.model.frozen_comp5_aux_optimizer_includes_parameters = False
+    # Optional OOD ablation: retain the fifth GraphGPS branch, its ratio and
+    # molecular descriptors while excluding the first-four formulation
+    # embeddings from the final regression fusion.
+    cfg.model.fifth_only_fusion = False
+    # Keep historical regression heads unbounded.  Input-only experiments can
+    # explicitly opt into a sigmoid readout for targets normalized to [0, 1].
+    cfg.model.output_activation = 'identity'
+    # Optional explicit composition basis appended to the fusion input.
+    # Disabled by default so legacy OneHotEmbedGPS checkpoints are unchanged.
+    cfg.model.ratio_polynomial_features = False
     cfg.model.architecture_name = 'legacy_baseline'
     cfg.model.validate_redesign_inputs = False
     cfg.property_num = 6
     cfg.property_serial = 0
+    # When ``property_num == 1`` in the five-component input loader, select
+    # one of the six CSV labels by its zero-based column order.  Keeping this
+    # explicit prevents a single-task run from silently inheriting a multi-task
+    # label through the historical ``property_serial`` default.
+    cfg.single_task_target_index = 0
     #average pretrained model
     cfg.ave_pretrained_model = 1
 
     #
     cfg.result_out =False
+    # In ``double_predict`` mode, legacy behavior only evaluates the validation
+    # loader.  Enable this explicitly when a prediction CSV must cover every
+    # row of the input file (train + validation + test partitions).
+    cfg.predict_all_splits = False
     # Set user customized cfgs
     for func in register.config_dict.values():
         func(cfg)

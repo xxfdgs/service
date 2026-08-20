@@ -1,0 +1,468 @@
+]633;E;for f in results/fifth_pretraining/stage5_downstream_transfer/P*/split*/summary.json;7ce6c708-0208-4277-ba49-cdd2cd2e8224]633;C===== results/fifth_pretraining/stage5_downstream_transfer/P0_random/split100/summary.json =====
+{
+  "fold": "fifth_identity_ood_split100",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 149,
+  "best_epoch": 99,
+  "best_validation_loss_normalized": 1.7622153759002686,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P0_random/split101/summary.json =====
+{
+  "fold": "fifth_identity_ood_split101",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 163,
+  "best_epoch": 113,
+  "best_validation_loss_normalized": 0.9851133823394775,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P0_random/split102/summary.json =====
+{
+  "fold": "fifth_identity_ood_split102",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 117,
+  "best_epoch": 67,
+  "best_validation_loss_normalized": 0.5263104438781738,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P1_PT_D/split100/summary.json =====
+{
+  "fold": "fifth_identity_ood_split100",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 166,
+  "best_epoch": 116,
+  "best_validation_loss_normalized": 1.876593828201294,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P1_PT_D/split101/summary.json =====
+{
+  "fold": "fifth_identity_ood_split101",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 151,
+  "best_epoch": 101,
+  "best_validation_loss_normalized": 1.0659652948379517,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P1_PT_D/split102/summary.json =====
+{
+  "fold": "fifth_identity_ood_split102",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 157,
+  "best_epoch": 107,
+  "best_validation_loss_normalized": 0.4160086512565613,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P2_PT_DF/split100/summary.json =====
+{
+  "fold": "fifth_identity_ood_split100",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 115,
+  "best_epoch": 65,
+  "best_validation_loss_normalized": 2.3264102935791016,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P2_PT_DF/split101/summary.json =====
+{
+  "fold": "fifth_identity_ood_split101",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 124,
+  "best_epoch": 74,
+  "best_validation_loss_normalized": 1.4284390211105347,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}
+===== results/fifth_pretraining/stage5_downstream_transfer/P2_PT_DF/split102/summary.json =====
+{
+  "fold": "fifth_identity_ood_split102",
+  "group": "B",
+  "candidate": "Stage5NormBeforeFullFT",
+  "fusion_type": "concat_mlp",
+  "head_type": "baseline",
+  "target_set": "norm2",
+  "targets": [
+    "Norm_before"
+  ],
+  "single_target": "Norm_before",
+  "target_scales": [
+    1.0
+  ],
+  "target_scaler": {
+    "type": "identity",
+    "mean": [
+      0.0
+    ],
+    "std": [
+      1.0
+    ],
+    "fit_split": "train"
+  },
+  "target_normalization": "identity",
+  "property_num": 1,
+  "architecture_name": "B_Stage5NormBeforeFullFT_concat_mlp_baseline",
+  "last_epoch": 144,
+  "best_epoch": 94,
+  "best_validation_loss_normalized": 0.4159224033355713,
+  "loss_targets": [
+    "Norm_before"
+  ],
+  "training_loss": "mae",
+  "huber_beta": 0.1,
+  "target_transform": "identity",
+  "enable_norm_threshold_aware": false,
+  "norm_threshold_report_only": false,
+  "norm_threshold": 1.0,
+  "norm_cls_loss_weight": 0.5,
+  "norm_fn_loss_weight": 1.0,
+  "norm_positive_reg_weight": 1.0,
+  "norm_threshold_selection_mae_tolerance": 0.1,
+  "threshold_aware_checkpoint": null,
+  "threshold_aware_best_epoch": null,
+  "threshold_aware_selection_f2_gt1": null,
+  "threshold_aware_selection_subset": null,
+  "outer_test_read_during_selection": false,
+  "parameter_count": 276337,
+  "core_model_parameter_count": 276337
+}

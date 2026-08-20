@@ -119,31 +119,31 @@ def load_dataset_master(format, name, dataset_dir):
         start = time.perf_counter()
         # logging.info(f"Precomputing Positional Encoding statistics: "
         #              f"{pe_enabled_list} for all graphs...")
+        five_component_mode = (
+            cfg.dataset.data_mask is True
+            or cfg.train.mode in {'double', 'double_predict', 'double_multi'}
+        )
+        # OneHotEmbedGPS consumes categorical IDs, ratios, auxiliary features,
+        # and Mordred descriptors for components 1-4.  Their graph tensors and
+        # positional encodings never enter the forward path; only component 5
+        # is passed through GraphGPS.  Skip the four unused RWSE computations
+        # while preserving the general five-graph path for every other model.
+        if five_component_mode and cfg.model.type == 'OneHotEmbedGPS':
+            posenc_datasets = [dataset_5]
+        elif five_component_mode:
+            posenc_datasets = [dataset, dataset_2, dataset_3, dataset_4, dataset_5]
+        else:
+            posenc_datasets = [dataset]
         # Estimate directedness based on 10 graphs to save time.
-        is_undirected = all(d.is_undirected() for d in dataset[:10])
+        is_undirected = all(d.is_undirected() for d in posenc_datasets[0][:10])
         # logging.info(f"  ...estimated to be undirected: {is_undirected}")
-        pre_transform_in_memory(dataset,
+        for posenc_dataset in posenc_datasets:
+            pre_transform_in_memory(posenc_dataset,
                                 partial(compute_posenc_stats,
                                         pe_types=pe_enabled_list,
                                         is_undirected=is_undirected,
                                         cfg=cfg),
-                                show_progress=True
-                                )
-        if cfg.dataset.data_mask == True or cfg.train.mode == 'double' or cfg.train.mode == 'double_predict'\
-                or cfg.train.mode == 'double_multi':
-
-            pre_transform_in_memory(dataset_2,partial(compute_posenc_stats,pe_types=pe_enabled_list,
-                                            is_undirected=is_undirected,
-                                            cfg=cfg),show_progress=True)
-            pre_transform_in_memory(dataset_3, partial(compute_posenc_stats, pe_types=pe_enabled_list,
-                                                       is_undirected=is_undirected,
-                                                       cfg=cfg), show_progress=True)
-            pre_transform_in_memory(dataset_4, partial(compute_posenc_stats, pe_types=pe_enabled_list,
-                                                       is_undirected=is_undirected,
-                                                       cfg=cfg), show_progress=True)
-            pre_transform_in_memory(dataset_5, partial(compute_posenc_stats, pe_types=pe_enabled_list,
-                                                       is_undirected=is_undirected,
-                                                       cfg=cfg), show_progress=True)
+                                show_progress=True)
         elapsed = time.perf_counter() - start
         timestr = time.strftime('%H:%M:%S', time.gmtime(elapsed)) \
                   + f'{elapsed:.2f}'[-3:]
@@ -262,7 +262,7 @@ def preformat_ZINC(dataset_dir, name):
 
     elif cfg.dataset.data_mask == False and cfg.train.mode == 'double':
         #### five
-        if cfg.property_num == 1:
+        if cfg.property_num == 1 and cfg.model.type != 'OneHotEmbedGPS':
             data_1_5 = [LRX_five(root=data_path, subset=(name == 'subset'), split=split)
                  for split in ['train','val', 'test',
                                      'train_2', 'val_2','test_2',
@@ -274,7 +274,7 @@ def preformat_ZINC(dataset_dir, name):
             dataset_3 = join_dataset_splits(data_1_5[6:9])
             dataset_4 = join_dataset_splits(data_1_5[9:12])
             dataset_5 = join_dataset_splits(data_1_5[12:])
-        elif cfg.property_num == 4 or cfg.property_num == 2:
+        elif cfg.property_num == 1 or cfg.property_num == 4 or cfg.property_num == 2:
             data_1_5 = [LRX_five_multi(root=data_path, subset=(name == 'subset'), split=split)
                  for split in ['train','val', 'test',
                                      'train_2', 'val_2','test_2',
@@ -292,7 +292,7 @@ def preformat_ZINC(dataset_dir, name):
     elif cfg.dataset.data_mask == False and cfg.train.mode == 'double_predict':
 
         #### five
-        if cfg.property_num == 1:
+        if cfg.property_num == 1 and cfg.model.type != 'OneHotEmbedGPS':
             data_1_5 = [LRX_five_predict(root=data_path, subset=(name == 'subset'), split=split)
                  for split in ['train','val', 'test',
                                      'train_2', 'val_2','test_2',
@@ -304,7 +304,7 @@ def preformat_ZINC(dataset_dir, name):
             dataset_3 = join_dataset_splits(data_1_5[6:9])
             dataset_4 = join_dataset_splits(data_1_5[9:12])
             dataset_5 = join_dataset_splits(data_1_5[12:])
-        elif cfg.property_num == 4 or cfg.property_num == 2:
+        elif cfg.property_num == 1 or cfg.property_num == 4 or cfg.property_num == 2:
             data_1_5 = [LRX_five_predict_multi(root=data_path, subset=(name == 'subset'), split=split)
                  for split in ['train','val', 'test',
                                      'train_2', 'val_2','test_2',
