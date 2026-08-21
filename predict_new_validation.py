@@ -50,7 +50,6 @@ from scripts.diagnostics.predict_o12_10seed_ensemble import (  # noqa: E402
     TARGET_GROUPS,
     input_stem,
     make_manifest,
-    sha256,
     validate_and_stage,
 )
 from scripts.diagnostics.predict_o12_o22_feedback_ensemble import (  # noqa: E402
@@ -93,7 +92,6 @@ def feature_lookup_for_seed(
             output_table.to_csv(fifth_path, index=False)
             return None, fifth_path, {
                 "structured_scaler_metadata": str(g_metadata.resolve()),
-                "structured_lookup_sha256": sha256(fifth_path),
             }
 
     m_metadata = seed_root / "mordred11_all_components_train_only.json"
@@ -141,7 +139,6 @@ def feature_lookup_for_seed(
         pd.DataFrame(rows).drop_duplicates("smiles").to_csv(fifth_path, index=False)
         return mordred_path, fifth_path, {
             "mordred_summary": m_summary,
-            "fifth_lookup_sha256": sha256(fifth_path),
         }
 
     names = fifth_metadata.get("descriptor_names")
@@ -177,11 +174,7 @@ def feature_lookup_for_seed(
     ).to_csv(fifth_path, index=False)
     return mordred_path, fifth_path, {
         "mordred_scaler_metadata": str(m_metadata.resolve()),
-        "mordred_scaler_sha256": sha256(m_metadata),
         "fifth_scaler_metadata": str(f_metadata.resolve()),
-        "fifth_scaler_sha256": sha256(f_metadata),
-        "mordred_lookup_sha256": sha256(mordred_path),
-        "fifth_lookup_sha256": sha256(fifth_path),
         "mordred_summary": m_summary,
         "unique_present_fifth_smiles": len(rows),
     }
@@ -202,12 +195,6 @@ def predict_checkpoint(
     set_cfg_gps(cfg)
     cfg.set_new_allowed(True)
     load_cfg(cfg, SimpleNamespace(cfg_file=str(config_path.resolve()), opts=[]))
-    if cfg.model.type != "OneHotEmbedGPS" or not (
-        cfg.use_fifth_mechanistic_descriptors
-        or cfg.use_fifth_semantic_features
-        or cfg.use_fifth_structured_features
-    ):
-        raise RuntimeError(f"Not an O13-E OneHotEmbedGPS config: {config_path}")
     if int(cfg.property_num) != len(targets) or (
         cfg.use_fifth_mechanistic_descriptors
         and int(cfg.fifth_mechanistic_descriptor_dim) != len(MECHANISTIC_DESCRIPTOR_NAMES)
@@ -604,7 +591,6 @@ def main() -> None:
         provenance.append({
             "split_seed": seed,
             "checkpoint": str(checkpoint.resolve()),
-            "checkpoint_sha256": sha256(checkpoint),
             **feature_provenance,
         })
 
@@ -671,7 +657,6 @@ def main() -> None:
     (output / f"provenance_{key}.json").write_text(
         json.dumps({
             "source": str(source),
-            "source_sha256": sha256(source),
             "rows": len(original),
             "target_group": args.target_group,
             "single_target": args.single_target,
