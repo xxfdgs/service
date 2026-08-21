@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """Infer frozen O13-E/O13G/O14-A checkpoints on labelled new_validation.
 
 For each checkpoint seed, the checkpoint-specific frozen preprocessing is
@@ -539,11 +539,8 @@ def main() -> None:
                 / args.o14a_ablation
                 / args.o14a_domain
                 / slug
+                / f"O14{args.o14a_ablation}{domain_title}_FifthOOD_{target_title}_seed{seed}"
             )
-            for child in run.iterdir():
-                if child.is_dir() and child.name.endswith(f"split{seed}"):
-                        run = child
-                        break
             feature_root = (
                 args.preprocessing_root.resolve()
                 / args.o14a_ablation
@@ -555,10 +552,12 @@ def main() -> None:
             slug = args.single_target.lower()
             run = (
                 args.model_root.resolve()
-                / "single_task"
                 / slug
-                / f"O13G_{slug}_split{seed}"
             )
+            for child in run.iterdir():
+                if child.is_dir() and child.name.endswith(f"split{seed}"):
+                    run = child
+                    break
             feature_root = args.preprocessing_root.resolve() / f"seed{seed}"
         else:
             group_root = args.model_root.resolve() / args.target_group
