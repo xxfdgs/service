@@ -539,8 +539,11 @@ def main() -> None:
                 / args.o14a_ablation
                 / args.o14a_domain
                 / slug
-                / f"O14{args.o14a_ablation}{domain_title}_FifthOOD_{target_title}_seed{seed}"
             )
+            for child in run.iterdir():
+                if child.is_dir() and child.name.endswith(f"split{seed}"):
+                        run = child
+                        break
             feature_root = (
                 args.preprocessing_root.resolve()
                 / args.o14a_ablation

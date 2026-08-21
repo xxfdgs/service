@@ -12,5 +12,5 @@
       --seed 43 --base-lr 0.001 --weight-decay 1e-5 \
       --gt-dropout 0.1 --gt-attn-dropout 0.2 \
       --execution-max-epochs 300 --include-test \
-      --enable-norm-sigmoid-weighting --norm-weight-low 0.1 --norm-weight-high 20\
+      --enable-norm-sigmoid-weighting --norm-weight-low 0.1 --norm-weight-high 5.0 --norm-weight-tau 2.0\
   done
